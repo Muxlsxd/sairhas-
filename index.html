@@ -310,7 +310,14 @@
     function showScreen(name) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[name].classList.add('active'); state.currentScreen = name; }
     function showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.textContent = message; els.toastContainer.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideUp 0.2s ease reverse'; setTimeout(() => toast.remove(), 200); }, 4000); }
     function setLoading(btn, loading) { if (loading) { btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> กำลังดำเนินการ...'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.originalText || btn.innerHTML; btn.disabled = false; } }
-    async function api(action, payload = {}) { try { const res = await fetch(CONFIG.GAS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...payload }) }); if (!res.ok) throw new Error(`HTTP ${res.status}`); return await res.json(); } catch (e) { console.error('API error:', e); throw e; } }
+    async function api(action, payload = {}) {
+      try {
+        const params = new URLSearchParams({ action, ...payload });
+        const res = await fetch(`${CONFIG.GAS_URL}?${params}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (e) { console.error('API error:', e); throw e; }
+    }
     function updateNetworkStatus(online) { state.isOnline = online; els.netDot.classList.toggle('online', online); els.netDot.classList.toggle('offline', !online); els.netText.textContent = online ? 'ออนไลน์' : 'ออฟไลน์'; }
     async function checkNetwork() { try { await fetch(CONFIG.GAS_URL, { method: 'HEAD', cache: 'no-cache' }); updateNetworkStatus(true); } catch { updateNetworkStatus(false); } }
     function startCountdown(revealAt) { clearInterval(state.countdownTimer); const target = new Date(revealAt).getTime(); function tick() { const diff = target - Date.now(); if (diff <= 0) { clearInterval(state.countdownTimer); els.countdown.innerHTML = '<span class="body-sm" style="color:var(--success);">✓ เปิดเผยแล้ว</span>'; els.revealNotice.classList.remove('hidden'); return; } const d = Math.floor(diff / 86400000); const h = Math.floor((diff % 86400000) / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000); els.cdDays.textContent = String(d).padStart(2,'0'); els.cdHours.textContent = String(h).padStart(2,'0'); els.cdMinutes.textContent = String(m).padStart(2,'0'); els.cdSeconds.textContent = String(s).padStart(2,'0'); } tick(); state.countdownTimer = setInterval(tick, 1000); }
