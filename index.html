@@ -319,7 +319,14 @@
       } catch (e) { console.error('API error:', e); throw e; }
     }
     function updateNetworkStatus(online) { state.isOnline = online; els.netDot.classList.toggle('online', online); els.netDot.classList.toggle('offline', !online); els.netText.textContent = online ? 'ออนไลน์' : 'ออฟไลน์'; }
-    async function checkNetwork() { try { await fetch(CONFIG.GAS_URL, { method: 'HEAD', cache: 'no-cache' }); updateNetworkStatus(true); } catch { updateNetworkStatus(false); } }
+    async function checkNetwork() {
+    try {
+      const res = await fetch(`${CONFIG.GAS_URL}?action=checkNetwork`);
+      updateNetworkStatus(res.ok);
+    } catch {
+      updateNetworkStatus(false);
+    }
+  }
     function startCountdown(revealAt) { clearInterval(state.countdownTimer); const target = new Date(revealAt).getTime(); function tick() { const diff = target - Date.now(); if (diff <= 0) { clearInterval(state.countdownTimer); els.countdown.innerHTML = '<span class="body-sm" style="color:var(--success);">✓ เปิดเผยแล้ว</span>'; els.revealNotice.classList.remove('hidden'); return; } const d = Math.floor(diff / 86400000); const h = Math.floor((diff % 86400000) / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000); els.cdDays.textContent = String(d).padStart(2,'0'); els.cdHours.textContent = String(h).padStart(2,'0'); els.cdMinutes.textContent = String(m).padStart(2,'0'); els.cdSeconds.textContent = String(s).padStart(2,'0'); } tick(); state.countdownTimer = setInterval(tick, 1000); }
     function formatTime(iso) { const d = new Date(iso); return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); }
     function renderVerifyInfo(parsed) { const roleLabel = parsed.role === 'Y2' ? 'พี่ (Y2)' : 'น้อง (Y1)'; const roleBadge = parsed.role === 'Y2' ? '<span class="badge badge-y2">Y2</span>' : '<span class="badge badge-y1">Y1</span>'; els.verifyInfo.innerHTML = `<div class="verify-item"><span class="verify-label">บทบาท</span><span class="verify-value">${roleBadge} ${roleLabel}</span></div><div class="verify-item"><span class="verify-label">รหัสเต็ม</span><span class="verify-value mono">${parsed.full}</span></div><div class="verify-item"><span class="verify-label">รหัสคู่ (Pair Key)</span><span class="verify-value mono">${parsed.pairKey}</span></div><div class="verify-item"><span class="verify-label">คณะ/สาขา (Core)</span><span class="verify-value mono">${parsed.core}</span></div>`; }

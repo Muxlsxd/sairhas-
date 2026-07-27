@@ -134,6 +134,9 @@ function doPost(e) {
       case 'getCountdown':
         result = handleGetCountdown(payload.pair_key);
         break;
+      case 'checkNetwork':
+        result = { ok: true };
+        break;
       default:
         result = { ok: false, error: 'Unknown action' };
     }
