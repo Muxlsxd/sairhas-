@@ -103,7 +103,6 @@ function doPost(e) {
     if (e.postData && e.postData.contents) {
       payload = JSON.parse(e.postData.contents);
     } else if (e.parameter) {
-      // Handle GET with query params
       payload = e.parameter;
     } else {
       payload = {};
@@ -141,17 +140,39 @@ function doPost(e) {
         result = { ok: false, error: 'Unknown action' };
     }
 
+    const headers = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Content-Type': 'application/json'
+    };
+
     return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders(headers);
   } catch (err) {
     console.error('doPost error:', err);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      });
   }
 }
 
 function doGet(e) {
   return doPost(e);
+}
+
+function doOptions(e) {
+  return ContentService.createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
 }
 
 // ---------- verifyStudentId ----------
