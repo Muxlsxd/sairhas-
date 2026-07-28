@@ -7,6 +7,8 @@
   <title>สายรหัส | APE/TME</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -33,6 +35,8 @@
       --transition: 180ms ease;
       --font-sans: 'IBM Plex Sans Thai', system-ui, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
+      --skeleton: #e8e6f0;
+      --skeleton-shimmer: #d8d6e8;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -251,6 +255,15 @@
     .reveal-notice { display:flex; align-items:center; gap:12px; padding:12px; background:var(--warning); border:1px solid #eddda9; border-radius:var(--radius); color:var(--fg); }
     .reveal-icon { flex-shrink:0; width:24px; height:24px; }
 
+    /* Skeleton loaders */
+    .skeleton { background: linear-gradient(90deg, var(--skeleton) 25%, var(--skeleton-shimmer) 50%, var(--skeleton) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius-sm); }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-text { height: 1rem; width: 100%; }
+    .skeleton-text.short { width: 60%; }
+    .skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; }
+    .skeleton-btn { height: 46px; width: 100%; }
+    .skeleton-card { padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+
     .flex { display:flex; } .flex-col { flex-direction:column; } .items-center { align-items:center; } .justify-between { justify-content:space-between; } .gap-2 { gap:8px; } .gap-3 { gap:12px; } .w-full { width:100%; } .text-center { text-align:center; } .mt-auto { margin-top:auto; } .hidden { display:none !important; }
 
     @media (min-width:640px) {
@@ -290,10 +303,10 @@
 
       <div class="card">
         <div class="input-group">
-                  <label class="input-label" for="studentIdInput">รหัสนักศึกษา 11 หลัก</label>
-                  <input type="text" id="studentIdInput" class="input-field" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" placeholder="เช่น 68070507606" autocomplete="off" aria-describedby="id-hint" required>
-                  <p id="id-hint" class="input-hint">รหัสปี 68 = พี่ (Y2) · รหัสปี 69 = น้อง (Y1)</p>
-                </div>
+          <label class="input-label" for="studentIdInput">รหัสนักศึกษา 11 หลัก</label>
+          <input type="text" id="studentIdInput" class="input-field" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" placeholder="เช่น 68070507606" autocomplete="off" aria-describedby="id-hint" required>
+          <p id="id-hint" class="input-hint">รหัสปี 68 = พี่ (Y2) \00b7 รหัสปี 69 = น้อง (Y1)</p>
+        </div>
         <div class="divider" aria-hidden="true">หรือ</div>
         <button class="btn btn-secondary btn-block" id="btnDemo" type="button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
@@ -347,13 +360,28 @@
   </main>
 
   <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.log('SW registration failed:', err));
+      
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data?.type === 'process-sync') {
+          processSyncQueue();
+        }
+      });
+    }
     // ============ CONFIG ============
-        const CONFIG = {
-          GAS_URL: 'https://script.google.com/macros/s/AKfycbzZxBJHn-Yv_Ju43kWUR8bARt4IVAsLXoENv1QyU-M4dJWGGN7s7N3wTe0K7yTLwbMNYw/exec',
-          MAX_PICKS_PER_SENIOR: 3,
-          POLL_INTERVAL: 10000,
-          NETWORK_CHECK_INTERVAL: 30000
-        };
+    const CONFIG = {
+      GAS_URL: 'https://script.google.com/macros/s/AKfycbzZxBJHn-Yv_Ju43kWUR8bARt4IVAsLXoENv1QyU-M4dJWGGN7s7N3wTe0K7yTLwbMNYw/exec',
+      MAX_PICKS_PER_SENIOR: 3,
+      POLL_INTERVAL: 10000,
+      NETWORK_CHECK_INTERVAL: 30000,
+      CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+      DEMO_USER_Y2: '68070507606',
+      DEMO_USER_Y1: '69070509606'
+    };
 
     // ============ STATE ============
     const state = {
@@ -367,7 +395,10 @@
       countdownTimer: null,
       networkTimer: null,
       isOnline: true,
-      demoMode: false
+      demoMode: false,
+      pendingRequests: new Map(),
+      cache: new Map(),
+      syncQueue: []
     };
 
     // ============ DOM ELEMENTS ============
@@ -470,18 +501,79 @@
       }
     }
 
-    async function api(action, payload = {}) {
-      try {
-        const params = new URLSearchParams({ action, ...payload });
-        const res = await fetch(CONFIG.GAS_URL + '?' + params, {
-          method: 'GET',
-          cache: 'no-cache'
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return await res.json();
-      } catch (e) {
-        console.error('API error:', e);
-        throw e;
+    // ============ CACHE & REQUEST DEDUP ============
+    function cacheGet(key) {
+      const entry = state.cache.get(key);
+      if (!entry) return null;
+      if (Date.now() - entry.ts > CONFIG.CACHE_TTL) {
+        state.cache.delete(key);
+        return null;
+      }
+      return entry.data;
+    }
+
+    function cacheSet(key, data) {
+      state.cache.set(key, { data, ts: Date.now() });
+    }
+
+    function cacheInvalidate(pattern) {
+      for (const key of state.cache.keys()) {
+        if (key.startsWith(pattern)) state.cache.delete(key);
+      }
+    }
+
+    async function api(action, payload = {}, options = {}) {
+      const cacheKey = action + ':' + JSON.stringify(payload);
+      const cached = cacheGet(cacheKey);
+      if (cached && !options.skipCache) return cached;
+
+      // Request deduplication
+      if (state.pendingRequests.has(cacheKey)) {
+        return state.pendingRequests.get(cacheKey);
+      }
+
+      const promise = (async () => {
+        try {
+          const params = new URLSearchParams({ action, ...payload });
+          const res = await fetch(CONFIG.GAS_URL + '?' + params, {
+            method: 'GET',
+            cache: 'no-cache',
+            credentials: 'omit'
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          if (action !== 'sendMessage' && action !== 'pickJunior') cacheSet(cacheKey, data);
+          return data;
+        } catch (e) {
+          if (action === 'sendMessage' || action === 'pickJunior') {
+            queueForSync(action, payload);
+          }
+          throw e;
+        } finally {
+          state.pendingRequests.delete(cacheKey);
+        }
+      })();
+
+      state.pendingRequests.set(cacheKey, promise);
+      return promise;
+    }
+
+    function queueForSync(action, payload) {
+      state.syncQueue.push({ action, payload, ts: Date.now() });
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'sync', action, payload });
+      }
+    }
+
+    async function processSyncQueue() {
+      while (state.syncQueue.length) {
+        const item = state.syncQueue.shift();
+        try {
+          await api(item.action, item.payload, { skipCache: true });
+        } catch {
+          state.syncQueue.unshift(item);
+          break;
+        }
       }
     }
 
@@ -490,6 +582,7 @@
       els.netDot.classList.toggle('online', online);
       els.netDot.classList.toggle('offline', !online);
       els.netText.textContent = online ? 'ออนไลน์' : 'ออฟไลน์';
+      if (online && state.syncQueue.length) processSyncQueue();
     }
 
     async function checkNetwork() {
@@ -532,15 +625,58 @@
     }
 
     function escapeHtml(str) {
-          const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-          };
-          return String(str ?? '').replace(/[&<>'"]/g, c => map[c]);
-        }
+      const map = {
+        '&': '&',
+        '<': '<',
+        '>': '>',
+        '"': '"',
+        "'": '''
+      };
+      return String(str ?? '').replace(/[&<>"']/g, c => map[c]);
+    }
+
+    // ============ SKELETON RENDERERS ============
+    function renderVerifySkeleton() {
+      els.verifyInfo.innerHTML = 
+        '<div class="verify-item"><div class="skeleton skeleton-text short"></div><div class="skeleton skeleton-text"></div></div>' +
+        '<div class="verify-item"><div class="skeleton skeleton-text short"></div><div class="skeleton skeleton-text"></div></div>' +
+        '<div class="verify-item"><div class="skeleton skeleton-text short"></div><div class="skeleton skeleton-text"></div></div>' +
+        '<div class="verify-item"><div class="skeleton skeleton-text short"></div><div class="skeleton skeleton-text"></div></div>';
+    }
+
+    function renderJuniorsSkeleton(count = 3) {
+      els.juniorsList.innerHTML = '';
+      els.emptyJuniors.classList.add('hidden');
+      for (let i = 0; i < count; i++) {
+        const card = document.createElement('div');
+        card.className = 'junior-card';
+        card.innerHTML = 
+          '<div class="junior-info">' +
+            '<div class="skeleton skeleton-text short"></div>' +
+            '<div class="skeleton skeleton-text short"></div>' +
+          '</div>' +
+          '<div class="skeleton skeleton-btn" style="width: 80px;"></div>';
+        els.juniorsList.appendChild(card);
+      }
+    }
+
+    function renderMessagesSkeleton(count = 5) {
+      els.messagesArea.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const msg = document.createElement('div');
+        msg.className = 'message ' + (i % 2 === 0 ? 'own' : 'other');
+        msg.innerHTML = 
+          '<div class="message-bubble">' +
+            '<div class="skeleton skeleton-text short" style="width: 60px; height: 16px;"></div>' +
+            '<div class="skeleton skeleton-text" style="width: 80%;"></div>' +
+          '</div>' +
+          '<div class="message-meta">' +
+            '<div class="skeleton skeleton-text short" style="width: 80px;"></div>' +
+            '<div class="skeleton skeleton-text short" style="width: 60px;"></div>' +
+          '</div>';
+        els.messagesArea.appendChild(msg);
+      }
+    }
 
     function renderVerifyInfo(parsed) {
       const roleLabel = parsed.role === 'Y2' ? 'พี่ (Y2)' : 'น้อง (Y1)';
@@ -564,7 +700,7 @@
       card.innerHTML = 
         '<div class="junior-info">' +
           '<span class="junior-id mono">' + junior.y1_id + '</span>' +
-          '<span class="junior-meta">คณะ/สาขา: ' + (junior.core || '—') + ' \00b7 รหัสคู่: ' + junior.pair_key + '</span>' +
+          '<span class="junior-meta">คณะ/สาขา: ' + (junior.core || '\u2014') + ' \00b7 รหัสคู่: ' + junior.pair_key + '</span>' +
         '</div>' +
         '<button class="btn btn-primary" data-action="pick" style="padding: 8px 16px; font-size: 0.875rem;">เลือก</button>';
       card.querySelector('[data-action="pick"]').addEventListener('click', () => pickJunior(junior.y1_id));
@@ -572,6 +708,7 @@
     }
 
     async function loadJuniors() {
+      renderJuniorsSkeleton();
       try {
         const data = await api('getAvailableJuniors');
         state.juniors = data.juniors || [];
@@ -584,23 +721,34 @@
         }
       } catch (e) {
         showToast('โหลดรายการน้องล้มเหลว', 'error');
+        els.juniorsList.innerHTML = '';
+        els.emptyJuniors.classList.remove('hidden');
+        els.emptyJuniors.querySelector('p').textContent = 'โหลดไม่สำเร็จ \00b7 ลองอีกครั้ง';
       }
     }
 
     async function pickJunior(y1Id) {
       const btn = document.querySelector('[data-id="' + y1Id + '"] [data-action="pick"]');
+      // Optimistic UI: disable button, show loading
       setLoading(btn, true);
+      // Optimistically remove from list
+      const card = btn.closest('.junior-card');
+      if (card) card.style.opacity = '0.5';
+      
       try {
         const res = await api('pickJunior', { y2_id: state.user.full, y1_id: y1Id });
         if (res.ok) {
           showToast('เลือกน้องสำเร็จ!', 'success');
+          cacheInvalidate('getAvailableJuniors');
           await loadJuniors();
           checkPairAndNavigate();
         } else {
           showToast(res.error || 'เลือกไม่สำเร็จ', 'error');
+          if (card) card.style.opacity = '1';
         }
       } catch (e) {
         showToast('เกิดข้อผิดพลาด', 'error');
+        if (card) card.style.opacity = '1';
       } finally {
         setLoading(btn, false);
       }
@@ -633,21 +781,12 @@
     }
 
     async function loadMessages() {
+      renderMessagesSkeleton();
       if (state.demoMode) {
         if (!state.messages.length) {
           state.messages = [
-            {
-              from_id: state.user.full,
-              content: 'ยินดีต้อนรับเข้าสู่สายรหัส 👋',
-              type: 'advice',
-              sent_at: new Date().toISOString()
-            },
-            {
-              from_id: state.pair.y1_id,
-              content: 'สวัสดีครับ ฝากตัวด้วยนะครับ',
-              type: 'encourage',
-              sent_at: new Date().toISOString()
-            }
+            { from_id: state.user.full, content: 'ยินดีต้อนรับเข้าสู่สายรหัส \uD83D\uDC4B', type: 'advice', sent_at: new Date().toISOString() },
+            { from_id: state.pair.y1_id, content: 'สวัสดีครับ ฝากตัวด้วยนะครับ', type: 'encourage', sent_at: new Date().toISOString() }
           ];
         }
         renderMessages(state.messages);
@@ -660,6 +799,7 @@
         renderMessages(state.messages);
       } catch (e) {
         showToast('โหลดข้อความล้มเหลว', 'error');
+        els.messagesArea.innerHTML = '<div class="empty-state"><p class="body-sm">โหลดข้อความไม่สำเร็จ</p></div>';
       }
     }
 
@@ -679,10 +819,7 @@
       setLoading(els.btnSend, true);
 
       try {
-        if (state.demoMode) {
-          // Already appended above
-          return;
-        }
+        if (state.demoMode) return;
 
         const res = await api('sendMessage', {
           pair_key: state.pair.pair_key,
@@ -692,13 +829,11 @@
         });
 
         if (!res.ok) {
-          // Remove optimistic message on failure
           state.messages.pop();
           els.messagesArea.lastChild?.remove();
           showToast(res.error || 'ส่งไม่สำเร็จ', 'error');
         }
       } catch (e) {
-        // Remove optimistic message on error
         state.messages.pop();
         els.messagesArea.lastChild?.remove();
         console.error(e);
@@ -743,23 +878,26 @@
         return;
       }
 
+      // Optimistic: show verify screen immediately with parsed data
       state.user = parsed;
+      renderVerifyInfo(parsed);
+      renderWaitVerifyInfo(parsed);
+      showScreen('verify');
       setLoading(els.btnConfirm, true);
 
       try {
         const res = await api('verifyStudentId', { student_id: parsed.full });
         if (res.ok) {
           state.pair = res.pair || null;
-          renderVerifyInfo(parsed);
-          showScreen('verify');
           return res;
         }
-
         showToast(res.error || 'ยืนยันไม่สำเร็จ', 'error');
+        showScreen('landing');
         return null;
       } catch (e) {
         console.error(e);
         showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error');
+        showScreen('landing');
         return null;
       } finally {
         setLoading(els.btnConfirm, false);
@@ -778,7 +916,6 @@
         return;
       }
 
-      // No existing pair: seniors pick, juniors wait.
       checkPairAndNavigate();
     }
 
@@ -807,18 +944,53 @@
       state.messages = [];
       state.juniors = [];
       state.demoMode = false;
+      state.pendingRequests.clear();
+      state.cache.clear();
       els.studentIdInput.value = '';
       showScreen('landing');
     }
 
+    // ============ SERVICE WORKER ============
+    function registerSW() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js', { scope: './' })
+          .then(reg => {
+            console.log('SW registered:', reg.scope);
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showToast('มีเวอร์ชันใหม่ \u2013 รีเฟรชเพื่ออัปเดต', 'info');
+                }
+              });
+            });
+          })
+          .catch(err => console.log('SW registration failed:', err));
+
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data?.type === 'sync') {
+            // Background sync triggered
+          }
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      }
+    }
+
     function init() {
+      // Register Service Worker
+      registerSW();
+
+      // Demo mode with mock data (same code path)
       els.btnDemo.addEventListener('click', () => {
         state.demoMode = true;
-        state.user = parseStudentId('68070507606');
+        state.user = parseStudentId(CONFIG.DEMO_USER_Y2);
         state.pair = {
           pair_key: '606',
-          y2_id: '68070507606',
-          y1_id: '69070509606',
+          y2_id: CONFIG.DEMO_USER_Y2,
+          y1_id: CONFIG.DEMO_USER_Y1,
           reveal_at: new Date(Date.now() + 86400000 * 14).toISOString()
         };
         showScreen('chat');
@@ -826,7 +998,7 @@
       });
 
       els.studentIdInput.addEventListener('input', () => {
-        els.studentIdInput.value = els.studentIdInput.value.replace(/\D/g, '').slice(0, 13);
+        els.studentIdInput.value = els.studentIdInput.value.replace(/\D/g, '').slice(0, 11);
       });
 
       els.studentIdInput.addEventListener('keydown', e => {
@@ -861,6 +1033,10 @@
 
       checkNetwork();
       state.networkTimer = setInterval(checkNetwork, CONFIG.NETWORK_CHECK_INTERVAL);
+
+      // Online/offline events
+      window.addEventListener('online', () => updateNetworkStatus(true));
+      window.addEventListener('offline', () => updateNetworkStatus(false));
     }
 
     document.addEventListener('DOMContentLoaded', init);
