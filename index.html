@@ -290,10 +290,10 @@
 
       <div class="card">
         <div class="input-group">
-          <label class="input-label" for="studentIdInput">รหัสนักศึกษา 13 หลัก</label>
-          <input type="text" id="studentIdInput" class="input-field" inputmode="numeric" pattern="[0-9]{13}" maxlength="13" placeholder="เช่น 6807050760601" autocomplete="off" aria-describedby="id-hint" required>
-          <p id="id-hint" class="input-hint">รหัสปี 68 = พี่ (Y2) \00b7 รหัสปี 69 = น้อง (Y1)</p>
-        </div>
+                  <label class="input-label" for="studentIdInput">รหัสนักศึกษา 11 หลัก</label>
+                  <input type="text" id="studentIdInput" class="input-field" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" placeholder="เช่น 68070507606" autocomplete="off" aria-describedby="id-hint" required>
+                  <p id="id-hint" class="input-hint">รหัสปี 68 = พี่ (Y2) · รหัสปี 69 = น้อง (Y1)</p>
+                </div>
         <div class="divider" aria-hidden="true">หรือ</div>
         <button class="btn btn-secondary btn-block" id="btnDemo" type="button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
@@ -414,7 +414,19 @@
     function parseStudentId(id) {
       const s = String(id ?? '').trim().replace(/\D/g, '');
 
-      // Production format: 13 digits.
+      // Production format: 11 digits (APE/TME).
+      if (s.length === 11) {
+        return {
+          year: s.slice(0, 2),
+          core: s.slice(2, 8),
+          suffix: s.slice(8, 11),
+          pairKey: s.slice(8, 11),
+          role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null,
+          full: s
+        };
+      }
+
+      // Legacy/demo format: 13 digits.
       if (s.length === 13) {
         return {
           year: s.slice(0, 2),
@@ -422,18 +434,6 @@
           variable: s.slice(8, 10),
           suffix: s.slice(10, 13),
           pairKey: s.slice(10, 13),
-          role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null,
-          full: s
-        };
-      }
-
-      // Legacy/demo format: 11 digits.
-      if (s.length === 11) {
-        return {
-          year: s.slice(0, 2),
-          core: s.slice(2, 8),
-          suffix: s.slice(8, 11),
-          pairKey: s.slice(8, 11),
           role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null,
           full: s
         };
@@ -532,15 +532,15 @@
     }
 
     function escapeHtml(str) {
-      const map = {
-        '&': '&',
-        '<': '<',
-        '>': '>',
-        '"': '"',
-        "'": '''
-      };
-      return String(str ?? '').replace(/[&<>"']/g, c => map[c]);
-    }
+          const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+          };
+          return String(str ?? '').replace(/[&<>'"]/g, c => map[c]);
+        }
 
     function renderVerifyInfo(parsed) {
       const roleLabel = parsed.role === 'Y2' ? 'พี่ (Y2)' : 'น้อง (Y1)';
@@ -731,15 +731,15 @@
         return;
       }
 
-      if (digits.length !== 13) {
-        showToast('กรุณากรอกรหัสนักศึกษาให้ครบ 13 หลัก', 'error');
+      if (digits.length !== 11) {
+        showToast('กรุณากรอกรหัสนักศึกษาให้ครบ 11 หลัก', 'error');
         els.studentIdInput.focus();
         return;
       }
 
       const parsed = parseStudentId(digits);
       if (!parsed || !parsed.role) {
-        showToast('รหัสไม่ถูกต้อง (ต้องเป็น 13 หลัก และขึ้นต้นด้วย 68 หรือ 69)', 'error');
+        showToast('รหัสไม่ถูกต้อง (ต้องเป็น 11 หลัก และขึ้นต้นด้วย 68 หรือ 69)', 'error');
         els.studentIdInput.focus();
         return;
       }
