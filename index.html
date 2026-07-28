@@ -26,6 +26,7 @@
       --shadow-strong: 0 8px 32px rgba(107,107,138,0.12);
       --radius: 12px;
       --radius-sm: 8px;
+      --radius-full: 9999px;
       --focus-ring: 0 0 0 3px var(--primary);
       --transition: 160ms ease;
       --font-sans: 'IBM Plex Sans Thai', system-ui, sans-serif;
@@ -132,7 +133,7 @@
     .chip-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
     .chip {
       display: inline-flex; align-items: center; gap: var(--space-1);
-      padding: var(--space-1) var(--space-3); border-radius: 999px;
+      padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
       font-size: 0.75rem; font-weight: 500; border: 1px solid var(--border);
       background: var(--bg-elevated); color: var(--fg-muted); cursor: pointer; transition: all var(--transition); min-height: 32px;
     }
@@ -291,7 +292,7 @@
         <div class="chat-header-left"><span class="pair-badge badge badge-matched" id="chatPairBadge"><span id="chatRoleBadge" class="badge badge-y2"></span><span id="chatPairKey" class="mono"></span></span></div>
         <div class="chat-header-right"><div class="countdown" id="countdown" aria-live="polite" aria-label="เวลาคงเหลือจนถึงวันเปิดเผยตัวตน"><span class="countdown-unit" id="cdDays">00</span><span aria-hidden="true">:</span><span class="countdown-unit" id="cdHours">00</span><span aria-hidden="true">:</span><span class="countdown-unit" id="cdMinutes">00</span><span aria-hidden="true">:</span><span class="countdown-unit" id="cdSeconds">00</span></div><button class="btn btn-ghost" id="btnLogoutChat" type="button" aria-label="ออกจากระบบ"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div>
       </header>
-      <div class="reveal-notice hidden" id="revealNotice" role="status" aria-live="polite"><svg class="reveal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>✦ วันเปิดเผยตัวตนถึงแล้ว! ชื่อจริงและข้อมูลจะถูกแสดง</span></div>
+      <div class="reveal-notice hidden" id="revealNotice" role="status" aria-live="polite"><svg class="reveal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>วันเปิดเผยตัวตนถึงแล้ว! ชื่อจริงและข้อมูลจะถูกแสดง</span></div>
       <div class="messages-area flex-1" id="messagesArea" role="log" aria-live="polite" aria-label="การสนทนา" style="min-height: 0;"></div>
       <div class="composer card" style="margin: 0; border-radius: 0 0 var(--radius) var(--radius); box-shadow: none; border-top: 1px solid var(--border);">
         <div class="composer-chips" role="group" aria-label="ประเภทข้อความ"><button class="chip active" data-type="advice" type="button" aria-pressed="true">คำแนะนำ</button><button class="chip" data-type="encourage" type="button" aria-pressed="false">ให้กำลังใจ</button><button class="chip" data-type="secret" type="button" aria-pressed="false">เคล็ดลับ</button><button class="chip" data-type="custom" type="button" aria-pressed="false">กำหนดเอง</button></div>
@@ -301,50 +302,429 @@
   </main>
 
   <script>
-    const CONFIG = { GAS_URL: 'https://script.google.com/macros/s/AKfycby4oh0RoXGJiVAsbppALYvDPg4SCbtmPcgNQn7BHNG0hLQVuHpfIlEMFkFYZfLC77x5/exec', MAX_PICKS_PER_SENIOR: 3, POLL_INTERVAL: 10000, NETWORK_CHECK_INTERVAL: 30000 };
-    const state = { user: null, pair: null, messages: [], juniors: [], currentScreen: 'landing', messageType: 'advice', pollTimer: null, countdownTimer: null, networkTimer: null, isOnline: true, demoMode: false };
-    const screens = { landing: document.getElementById('screen-landing'), verify: document.getElementById('screen-verify'), pick: document.getElementById('screen-pick'), wait: document.getElementById('screen-wait'), chat: document.getElementById('screen-chat') };
-    const els = { studentIdInput: document.getElementById('studentIdInput'), btnDemo: document.getElementById('btnDemo'), verifyInfo: document.getElementById('verifyInfo'), btnBack: document.getElementById('btnBack'), btnConfirm: document.getElementById('btnConfirm'), juniorsList: document.getElementById('juniorsList'), emptyJuniors: document.getElementById('emptyJuniors'), btnLogoutPick: document.getElementById('btnLogoutPick'), waitVerifyInfo: document.getElementById('waitVerifyInfo'), btnLogoutWait: document.getElementById('btnLogoutWait'), chatPairBadge: document.getElementById('chatPairBadge'), chatRoleBadge: document.getElementById('chatRoleBadge'), chatPairKey: document.getElementById('chatPairKey'), countdown: document.getElementById('countdown'), cdDays: document.getElementById('cdDays'), cdHours: document.getElementById('cdHours'), cdMinutes: document.getElementById('cdMinutes'), cdSeconds: document.getElementById('cdSeconds'), revealNotice: document.getElementById('revealNotice'), messagesArea: document.getElementById('messagesArea'), messageInput: document.getElementById('messageInput'), btnSend: document.getElementById('btnSend'), btnLogoutChat: document.getElementById('btnLogoutChat'), composerChips: document.querySelectorAll('.composer-chips .chip'), netStatus: document.getElementById('netStatus'), netDot: document.getElementById('netDot'), netText: document.getElementById('netText'), toastContainer: document.getElementById('toastContainer') };
+    // ============ CONFIG ============
+    const CONFIG = {
+          GAS_URL: 'https://script.google.com/macros/s/AKfycbzBo1_NXs33_NyEVM6FY_Cy5bn5tjHOfnT-RB9xhhksYLhcwV7O8pZlwnbjo8wv8CDtYQ/exec',
+          MAX_PICKS_PER_SENIOR: 3,
+          POLL_INTERVAL: 10000,
+          NETWORK_CHECK_INTERVAL: 30000
+        };
 
-    function parseStudentId(id) { const s = String(id).trim().replace(/\D/g, ''); if (s.length === 11) { return { year: s.slice(0,2), core: s.slice(2,8), suffix: s.slice(8,11), pairKey: s.slice(8,11), role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null, full: s }; } if (s.length === 13) { return { year: s.slice(0,2), core: s.slice(2,8), variable: s.slice(8,10), suffix: s.slice(10,13), pairKey: s.slice(10,13), role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null, full: s }; } return null; }
-    function showScreen(name) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[name].classList.add('active'); state.currentScreen = name; }
-    function showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.textContent = message; els.toastContainer.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideUp 0.2s ease reverse'; setTimeout(() => toast.remove(), 200); }, 4000); }
-    function setLoading(btn, loading) { if (loading) { btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> กำลังดำเนินการ...'; btn.disabled = true; } else { btn.innerHTML = btn.dataset.originalText || btn.innerHTML; btn.disabled = false; } }
+    // ============ STATE ============
+    const state = {
+      user: null,
+      pair: null,
+      messages: [],
+      juniors: [],
+      currentScreen: 'landing',
+      messageType: 'advice',
+      pollTimer: null,
+      countdownTimer: null,
+      networkTimer: null,
+      isOnline: true,
+      demoMode: false
+    };
+
+    // ============ DOM ELEMENTS ============
+    const screens = {
+      landing: document.getElementById('screen-landing'),
+      verify: document.getElementById('screen-verify'),
+      pick: document.getElementById('screen-pick'),
+      wait: document.getElementById('screen-wait'),
+      chat: document.getElementById('screen-chat')
+    };
+
+    const els = {
+      studentIdInput: document.getElementById('studentIdInput'),
+      btnDemo: document.getElementById('btnDemo'),
+      verifyInfo: document.getElementById('verifyInfo'),
+      btnBack: document.getElementById('btnBack'),
+      btnConfirm: document.getElementById('btnConfirm'),
+      juniorsList: document.getElementById('juniorsList'),
+      emptyJuniors: document.getElementById('emptyJuniors'),
+      btnLogoutPick: document.getElementById('btnLogoutPick'),
+      waitVerifyInfo: document.getElementById('waitVerifyInfo'),
+      btnLogoutWait: document.getElementById('btnLogoutWait'),
+      chatPairBadge: document.getElementById('chatPairBadge'),
+      chatRoleBadge: document.getElementById('chatRoleBadge'),
+      chatPairKey: document.getElementById('chatPairKey'),
+      countdown: document.getElementById('countdown'),
+      cdDays: document.getElementById('cdDays'),
+      cdHours: document.getElementById('cdHours'),
+      cdMinutes: document.getElementById('cdMinutes'),
+      cdSeconds: document.getElementById('cdSeconds'),
+      revealNotice: document.getElementById('revealNotice'),
+      messagesArea: document.getElementById('messagesArea'),
+      messageInput: document.getElementById('messageInput'),
+      btnSend: document.getElementById('btnSend'),
+      btnLogoutChat: document.getElementById('btnLogoutChat'),
+      composerChips: Array.from(document.querySelectorAll('.composer-chips .chip')),
+      netStatus: document.getElementById('netStatus'),
+      netDot: document.getElementById('netDot'),
+      netText: document.getElementById('netText'),
+      toastContainer: document.getElementById('toastContainer')
+    };
+
+    // ============ UTILITIES ============
+    function parseStudentId(id) {
+      const s = String(id).trim().replace(/\D/g, '');
+      if (s.length === 11) {
+        return {
+          year: s.slice(0, 2),
+          core: s.slice(2, 8),
+          suffix: s.slice(8, 11),
+          pairKey: s.slice(8, 11),
+          role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null,
+          full: s
+        };
+      }
+      if (s.length === 13) {
+        return {
+          year: s.slice(0, 2),
+          core: s.slice(2, 8),
+          variable: s.slice(8, 10),
+          suffix: s.slice(10, 13),
+          pairKey: s.slice(10, 13),
+          role: s.startsWith('68') ? 'Y2' : s.startsWith('69') ? 'Y1' : null,
+          full: s
+        };
+      }
+      return null;
+    }
+
+    function showScreen(name) {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[name].classList.add('active');
+      state.currentScreen = name;
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      els.toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.style.animation = 'slideUp 0.2s ease reverse';
+        setTimeout(() => toast.remove(), 200);
+      }, 4000);
+    }
+
+    function setLoading(btn, loading) {
+      if (loading) {
+        btn.dataset.originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> กำลังดำเนินการ...';
+        btn.disabled = true;
+      } else {
+        btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+        btn.disabled = false;
+      }
+    }
+
     async function api(action, payload = {}) {
       try {
-        const params = new URLSearchParams({ action, ...payload });
-        const res = await fetch(`${CONFIG.GAS_URL}?${params}`);
+        const res = await fetch(CONFIG.GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, ...payload })
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
-      } catch (e) { console.error('API error:', e); throw e; }
+      } catch (e) {
+        console.error('API error:', e);
+        throw e;
+      }
     }
-    function updateNetworkStatus(online) { state.isOnline = online; els.netDot.classList.toggle('online', online); els.netDot.classList.toggle('offline', !online); els.netText.textContent = online ? 'ออนไลน์' : 'ออฟไลน์'; }
+
+    function updateNetworkStatus(online) {
+      state.isOnline = online;
+      els.netDot.classList.toggle('online', online);
+      els.netDot.classList.toggle('offline', !online);
+      els.netText.textContent = online ? 'ออนไลน์' : 'ออฟไลน์';
+    }
+
     async function checkNetwork() {
-    try {
-      const res = await fetch(`${CONFIG.GAS_URL}?action=checkNetwork`);
-      updateNetworkStatus(res.ok);
-    } catch {
-      updateNetworkStatus(false);
+      try {
+        await fetch(CONFIG.GAS_URL, { method: 'HEAD', cache: 'no-cache' });
+        updateNetworkStatus(true);
+      } catch {
+        updateNetworkStatus(false);
+      }
     }
-  }
-    function startCountdown(revealAt) { clearInterval(state.countdownTimer); const target = new Date(revealAt).getTime(); function tick() { const diff = target - Date.now(); if (diff <= 0) { clearInterval(state.countdownTimer); els.countdown.innerHTML = '<span class="body-sm" style="color:var(--success);">✓ เปิดเผยแล้ว</span>'; els.revealNotice.classList.remove('hidden'); return; } const d = Math.floor(diff / 86400000); const h = Math.floor((diff % 86400000) / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000); els.cdDays.textContent = String(d).padStart(2,'0'); els.cdHours.textContent = String(h).padStart(2,'0'); els.cdMinutes.textContent = String(m).padStart(2,'0'); els.cdSeconds.textContent = String(s).padStart(2,'0'); } tick(); state.countdownTimer = setInterval(tick, 1000); }
-    function formatTime(iso) { const d = new Date(iso); return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); }
-    function renderVerifyInfo(parsed) { const roleLabel = parsed.role === 'Y2' ? 'พี่ (Y2)' : 'น้อง (Y1)'; const roleBadge = parsed.role === 'Y2' ? '<span class="badge badge-y2">Y2</span>' : '<span class="badge badge-y1">Y1</span>'; els.verifyInfo.innerHTML = `<div class="verify-item"><span class="verify-label">บทบาท</span><span class="verify-value">${roleBadge} ${roleLabel}</span></div><div class="verify-item"><span class="verify-label">รหัสเต็ม</span><span class="verify-value mono">${parsed.full}</span></div><div class="verify-item"><span class="verify-label">รหัสคู่ (Pair Key)</span><span class="verify-value mono">${parsed.pairKey}</span></div><div class="verify-item"><span class="verify-label">คณะ/สาขา (Core)</span><span class="verify-value mono">${parsed.core}</span></div>`; }
-    function renderWaitVerifyInfo(parsed) { renderVerifyInfo(parsed); els.waitVerifyInfo.innerHTML = els.verifyInfo.innerHTML; }
-    function renderJuniorCard(junior) { const card = document.createElement('div'); card.className = 'junior-card'; card.dataset.id = junior.y1_id; card.innerHTML = `<div class="junior-info"><span class="junior-id mono">${junior.y1_id}</span><span class="junior-meta">คณะ/สาขา: ${junior.core || '—'} · รหัสคู่: ${junior.pair_key}</span></div><button class="btn btn-primary" data-action="pick" style="padding: var(--space-2) var(--space-4); font-size: 0.875rem;">เลือก</button>`; card.querySelector('[data-action="pick"]').addEventListener('click', () => pickJunior(junior.y1_id)); return card; }
-    async function loadJuniors() { try { const data = await api('getAvailableJuniors'); state.juniors = data.juniors || []; els.juniorsList.innerHTML = ''; if (state.juniors.length === 0) { els.emptyJuniors.classList.remove('hidden'); } else { els.emptyJuniors.classList.add('hidden'); state.juniors.forEach(j => els.juniorsList.appendChild(renderJuniorCard(j))); } } catch (e) { showToast('โหลดรายการน้องล้มเหลว', 'error'); } }
-    async function pickJunior(y1Id) { const btn = document.querySelector(`[data-id="${y1Id}"] [data-action="pick"]`); setLoading(btn, true); try { const res = await api('pickJunior', { y2_id: state.user.full, y1_id: y1Id }); if (res.ok) { showToast('เลือกน้องสำเร็จ!', 'success'); await loadJuniors(); checkPairAndNavigate(); } else { showToast(res.error || 'เลือกไม่สำเร็จ', 'error'); } } catch (e) { showToast('เกิดข้อผิดพลาด', 'error'); } finally { setLoading(btn, false); } }
-    function renderMessage(msg, isOwn) { const div = document.createElement('div'); div.className = `message ${isOwn ? 'own' : 'other'}`; const typeClass = `type-${msg.type}`; div.innerHTML = `<div class="message-bubble"><span class="message-type ${typeClass}">${msg.type}</span><span>${escapeHtml(msg.content)}</span></div><div class="message-meta"><span class="mono">${msg.from_id}</span><span>${formatTime(msg.sent_at)}</span></div>`; return div; }
-    function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":"'"}[c])); }
-    function appendMessage(msg, isOwn) { els.messagesArea.appendChild(renderMessage(msg, isOwn)); els.messagesArea.scrollTop = els.messagesArea.scrollHeight; }
-    function renderMessages(list) { els.messagesArea.innerHTML = ''; list.forEach(m => appendMessage(m, m.from_id === state.user.full)); }
-    async function loadMessages() { try { const data = await api('getThread', { pair_key: state.pair.pair_key }); state.messages = data.messages || []; renderMessages(state.messages); } catch (e) { showToast('โหลดข้อความล้มเหลว', 'error'); } }
-    async function sendMessage() { const content = els.messageInput.value.trim(); if (!content) return; const type = state.messageType; els.messageInput.value = ''; setLoading(els.btnSend, true); try { const res = await api('sendMessage', { pair_key: state.pair.pair_key, from_id: state.user.full, content, type }); if (res.ok) { appendMessage({ from_id: state.user.full, content, type, sent_at: new Date().toISOString() }, true); } else { showToast(res.error || 'ส่งไม่สำเร็จ', 'error'); } } catch (e) { showToast('เกิดข้อผิดพลาด', 'error'); } finally { setLoading(els.btnSend, false); } }
-    function checkPairAndNavigate() { if (state.pair?.y1_id) { showScreen('chat'); setupChat(); } else if (state.user.role === 'Y2') { showScreen('pick'); loadJuniors(); } else { showScreen('wait'); } }
-    async function verifyAndNavigate() { const raw = els.studentIdInput.value.trim(); if (!raw) { showToast('กรุณากรอกรหัสนักศึกษา', 'error'); return; } const parsed = parseStudentId(raw); if (!parsed || !parsed.role) { showToast('รหัสไม่ถูกต้อง (ต้องเป็น 13 หลัก เริ่มต้น 68 หรือ 69)', 'error'); return; } state.user = parsed; setLoading(els.btnConfirm, true); try { const res = await api('verifyStudentId', { student_id: parsed.full }); if (res.ok) { state.pair = res.pair; renderVerifyInfo(parsed); showScreen('verify'); } else { showToast(res.error || 'ยืนยันไม่สำเร็จ', 'error'); } } catch (e) { showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error'); } finally { setLoading(els.btnConfirm, false); } }
-    function setupChat() { els.chatRoleBadge.textContent = state.user.role === 'Y2' ? 'Y2' : 'Y1'; els.chatRoleBadge.className = `badge ${state.user.role === 'Y2' ? 'badge-y2' : 'badge-y1'}`; els.chatPairKey.textContent = state.pair.pair_key; if (state.pair.reveal_at) startCountdown(state.pair.reveal_at); loadMessages(); state.pollTimer = setInterval(loadMessages, CONFIG.POLL_INTERVAL); }
-    function logout() { clearInterval(state.pollTimer); clearInterval(state.countdownTimer); clearInterval(state.networkTimer); state.user = null; state.pair = null; state.messages = []; state.juniors = []; els.studentIdInput.value = ''; showScreen('landing'); }
-    function init() { els.btnDemo.addEventListener('click', () => { state.demoMode = true; state.user = parseStudentId('68070507606'); state.pair = { pair_key: '606', y2_id: '68070507606', y1_id: '69070509606', reveal_at: new Date(Date.now() + 86400000*14).toISOString() }; showScreen('chat'); setupChat(); }); els.studentIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') verifyAndNavigate(); }); els.btnConfirm.addEventListener('click', verifyAndNavigate); els.btnBack.addEventListener('click', () => showScreen('landing')); els.btnLogoutPick.addEventListener('click', logout); els.btnLogoutWait.addEventListener('click', logout); els.btnLogoutChat.addEventListener('click', logout); els.btnSend.addEventListener('click', sendMessage); els.messageInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); }); els.composerChips.forEach(chip => { chip.addEventListener('click', () => { els.composerChips.forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); }); chip.classList.add('active'); chip.setAttribute('aria-pressed', 'true'); state.messageType = chip.dataset.type; }); }); checkNetwork(); state.networkTimer = setInterval(checkNetwork, CONFIG.NETWORK_CHECK_INTERVAL); }
+
+    function startCountdown(revealAt) {
+      clearInterval(state.countdownTimer);
+      const target = new Date(revealAt).getTime();
+      function tick() {
+        const diff = target - Date.now();
+        if (diff <= 0) {
+          clearInterval(state.countdownTimer);
+          els.countdown.innerHTML = '<span class="body-sm" style="color:var(--success);">เปิดเผยแล้ว</span>';
+          els.revealNotice.classList.remove('hidden');
+          return;
+        }
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        els.cdDays.textContent = String(d).padStart(2, '0');
+        els.cdHours.textContent = String(h).padStart(2, '0');
+        els.cdMinutes.textContent = String(m).padStart(2, '0');
+        els.cdSeconds.textContent = String(s).padStart(2, '0');
+      }
+      tick();
+      state.countdownTimer = setInterval(tick, 1000);
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(str) {
+      const map = {'&':'&','<':'<','>':'>','"':'"',"'":'&apos;'};
+      return String(str).replace(/[&<>"']/g, function(c) { return map[c]; });
+    }
+
+    function renderVerifyInfo(parsed) {
+      const roleLabel = parsed.role === 'Y2' ? 'พี่ (Y2)' : 'น้อง (Y1)';
+      const roleBadge = parsed.role === 'Y2' ? '<span class="badge badge-y2">Y2</span>' : '<span class="badge badge-y1">Y1</span>';
+      els.verifyInfo.innerHTML = `
+        <div class="verify-item"><span class="verify-label">บทบาท</span><span class="verify-value">${roleBadge} ${roleLabel}</span></div>
+        <div class="verify-item"><span class="verify-label">รหัสเต็ม</span><span class="verify-value mono">${parsed.full}</span></div>
+        <div class="verify-item"><span class="verify-label">รหัสคู่ (Pair Key)</span><span class="verify-value mono">${parsed.pairKey}</span></div>
+        <div class="verify-item"><span class="verify-label">คณะ/สาขา (Core)</span><span class="verify-value mono">${parsed.core}</span></div>
+      `;
+    }
+
+    function renderWaitVerifyInfo(parsed) {
+      renderVerifyInfo(parsed);
+      els.waitVerifyInfo.innerHTML = els.verifyInfo.innerHTML;
+    }
+
+    function renderJuniorCard(junior) {
+      const card = document.createElement('div');
+      card.className = 'junior-card';
+      card.dataset.id = junior.y1_id;
+      card.innerHTML = `
+        <div class="junior-info">
+          <span class="junior-id mono">${junior.y1_id}</span>
+          <span class="junior-meta">คณะ/สาขา: ${junior.core || '—'} · รหัสคู่: ${junior.pair_key}</span>
+        </div>
+        <button class="btn btn-primary" data-action="pick" style="padding: var(--space-2) var(--space-4); font-size: 0.875rem;">เลือก</button>
+      `;
+      card.querySelector('[data-action="pick"]').addEventListener('click', () => pickJunior(junior.y1_id));
+      return card;
+    }
+
+    async function loadJuniors() {
+      try {
+        const data = await api('getAvailableJuniors');
+        state.juniors = data.juniors || [];
+        els.juniorsList.innerHTML = '';
+        if (state.juniors.length === 0) {
+          els.emptyJuniors.classList.remove('hidden');
+        } else {
+          els.emptyJuniors.classList.add('hidden');
+          state.juniors.forEach(j => els.juniorsList.appendChild(renderJuniorCard(j)));
+        }
+      } catch (e) {
+        showToast('โหลดรายการน้องล้มเหลว', 'error');
+      }
+    }
+
+    async function pickJunior(y1Id) {
+      const btn = document.querySelector(`[data-id="${y1Id}"] [data-action="pick"]`);
+      setLoading(btn, true);
+      try {
+        const res = await api('pickJunior', { y2_id: state.user.full, y1_id: y1Id });
+        if (res.ok) {
+          showToast('เลือกน้องสำเร็จ!', 'success');
+          await loadJuniors();
+          checkPairAndNavigate();
+        } else {
+          showToast(res.error || 'เลือกไม่สำเร็จ', 'error');
+        }
+      } catch (e) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+
+    function renderMessage(msg, isOwn) {
+      const el = document.createElement('div');
+      el.className = `message ${isOwn ? 'own' : 'other'}`;
+      const typeClass = `type-${msg.type}`;
+      el.innerHTML = `
+        <div class="message-bubble">
+          <span class="message-type ${typeClass}">${msg.type}</span>
+          <span>${escapeHtml(msg.content)}</span>
+        </div>
+        <div class="message-meta">
+          <span class="mono">${msg.from_id}</span>
+          <span>${formatTime(msg.sent_at)}</span>
+        </div>
+      `;
+      return el;
+    }
+
+    function appendMessage(msg, isOwn) {
+      els.messagesArea.appendChild(renderMessage(msg, isOwn));
+      els.messagesArea.scrollTop = els.messagesArea.scrollHeight;
+    }
+
+    function renderMessages(list) {
+      els.messagesArea.innerHTML = '';
+      list.forEach(m => appendMessage(m, m.from_id === state.user.full));
+    }
+
+    async function loadMessages() {
+      try {
+        const data = await api('getThread', { pair_key: state.pair.pair_key });
+        state.messages = data.messages || [];
+        renderMessages(state.messages);
+      } catch (e) {
+        showToast('โหลดข้อความล้มเหลว', 'error');
+      }
+    }
+
+    async function sendMessage() {
+      const content = els.messageInput.value.trim();
+      if (!content) return;
+      const type = state.messageType;
+      els.messageInput.value = '';
+      setLoading(els.btnSend, true);
+      try {
+        const res = await api('sendMessage', {
+          pair_key: state.pair.pair_key,
+          from_id: state.user.full,
+          content,
+          type
+        });
+        if (res.ok) {
+          appendMessage({
+            from_id: state.user.full,
+            content,
+            type,
+            sent_at: new Date().toISOString()
+          }, true);
+        } else {
+          showToast(res.error || 'ส่งไม่สำเร็จ', 'error');
+        }
+      } catch (e) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+      } finally {
+        setLoading(els.btnSend, false);
+      }
+    }
+
+    function checkPairAndNavigate() {
+      if (state.pair?.y1_id) {
+        showScreen('chat');
+        setupChat();
+      } else if (state.user.role === 'Y2') {
+        showScreen('pick');
+        loadJuniors();
+      } else {
+        showScreen('wait');
+      }
+    }
+
+    async function verifyAndNavigate() {
+      const raw = els.studentIdInput.value.trim();
+      if (!raw) {
+        showToast('กรุณากรอกรหัสนักศึกษา', 'error');
+        return;
+      }
+      const parsed = parseStudentId(raw);
+      if (!parsed || !parsed.role) {
+        showToast('รหัสไม่ถูกต้อง (ต้องเป็น 13 หลัก เริ่มต้น 68 หรือ 69)', 'error');
+        return;
+      }
+      state.user = parsed;
+      setLoading(els.btnConfirm, true);
+      try {
+        const res = await api('verifyStudentId', { student_id: parsed.full });
+        if (res.ok) {
+          state.pair = res.pair;
+          renderVerifyInfo(parsed);
+          showScreen('verify');
+        } else {
+          showToast(res.error || 'ยืนยันไม่สำเร็จ', 'error');
+        }
+      } catch (e) {
+        showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error');
+      } finally {
+        setLoading(els.btnConfirm, false);
+      }
+    }
+
+    function setupChat() {
+      els.chatRoleBadge.textContent = state.user.role === 'Y2' ? 'Y2' : 'Y1';
+      els.chatRoleBadge.className = `badge ${state.user.role === 'Y2' ? 'badge-y2' : 'badge-y1'}`;
+      els.chatPairKey.textContent = state.pair.pair_key;
+      if (state.pair.reveal_at) startCountdown(state.pair.reveal_at);
+      loadMessages();
+      state.pollTimer = setInterval(loadMessages, CONFIG.POLL_INTERVAL);
+    }
+
+    function logout() {
+      clearInterval(state.pollTimer);
+      clearInterval(state.countdownTimer);
+      clearInterval(state.networkTimer);
+      state.user = null;
+      state.pair = null;
+      state.messages = [];
+      state.juniors = [];
+      els.studentIdInput.value = '';
+      showScreen('landing');
+    }
+
+    function init() {
+      els.btnDemo.addEventListener('click', () => {
+        state.demoMode = true;
+        state.user = parseStudentId('68070507606');
+        state.pair = {
+          pair_key: '606',
+          y2_id: '68070507606',
+          y1_id: '69070509606',
+          reveal_at: new Date(Date.now() + 86400000 * 14).toISOString()
+        };
+        showScreen('chat');
+        setupChat();
+      });
+
+      els.studentIdInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') verifyAndNavigate();
+      });
+
+      els.btnConfirm.addEventListener('click', verifyAndNavigate);
+      els.btnBack.addEventListener('click', () => showScreen('landing'));
+      els.btnLogoutPick.addEventListener('click', logout);
+      els.btnLogoutWait.addEventListener('click', logout);
+      els.btnLogoutChat.addEventListener('click', logout);
+      els.btnSend.addEventListener('click', sendMessage);
+
+      els.messageInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      els.composerChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          els.composerChips.forEach(c => {
+            c.classList.remove('active');
+            c.setAttribute('aria-pressed', 'false');
+          });
+          chip.classList.add('active');
+          chip.setAttribute('aria-pressed', 'true');
+          state.messageType = chip.dataset.type;
+        });
+      });
+
+      checkNetwork();
+      state.networkTimer = setInterval(checkNetwork, CONFIG.NETWORK_CHECK_INTERVAL);
+    }
+
     document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>

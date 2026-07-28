@@ -10,7 +10,7 @@
  */
 
 // ============ CONFIG ============
-const SHEET_NAME = 'สายรหัส_Data'; // or use SpreadsheetApp.getActiveSpreadsheet()
+const SPREADSHEET_ID = '1BkgMNCGAXz3pu1cAUoQzFf0PebtHeIymp33hD9-6vHU';
 const TABS = {
   PAIRS: 'pairs',
   SENIORS: 'seniors',
@@ -53,7 +53,7 @@ function parseStudentId(id) {
 }
 
 function getSheet(tabName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   let sheet = ss.getSheetByName(tabName);
   if (!sheet) {
     sheet = ss.insertSheet(tabName);
