@@ -444,7 +444,8 @@
 
     async function checkNetwork() {
       try {
-        await fetch(CONFIG.GAS_URL, { method: 'HEAD', cache: 'no-cache' });
+        const params = new URLSearchParams({ action: 'checkNetwork' });
+        await fetch(`${CONFIG.GAS_URL}?${params}`, { method: 'GET', cache: 'no-cache' });
         updateNetworkStatus(true);
       } catch {
         updateNetworkStatus(false);
@@ -648,15 +649,25 @@
         if (res.ok) {
           state.pair = res.pair;
           renderVerifyInfo(parsed);
-          showScreen('verify');
+          return res; // Return result for chaining
         } else {
           showToast(res.error || 'ยืนยันไม่สำเร็จ', 'error');
+          return null;
         }
       } catch (e) {
         showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error');
+        return null;
       } finally {
         setLoading(els.btnConfirm, false);
       }
+    }
+
+    async function confirmAndProceed() {
+      if (!state.pair) {
+        showToast('ยังไม่ได้ยืนยันข้อมูล', 'error');
+        return;
+      }
+      checkPairAndNavigate();
     }
 
     function setupChat() {
@@ -698,7 +709,7 @@
         if (e.key === 'Enter') verifyAndNavigate();
       });
 
-      els.btnConfirm.addEventListener('click', verifyAndNavigate);
+      els.btnConfirm.addEventListener('click', confirmAndProceed);
       els.btnBack.addEventListener('click', () => showScreen('landing'));
       els.btnLogoutPick.addEventListener('click', logout);
       els.btnLogoutWait.addEventListener('click', logout);
