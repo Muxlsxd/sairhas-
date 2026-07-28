@@ -304,7 +304,7 @@
   <script>
     // ============ CONFIG ============
     const CONFIG = {
-          GAS_URL: 'https://script.google.com/macros/s/AKfycbzBo1_NXs33_NyEVM6FY_Cy5bn5tjHOfnT-RB9xhhksYLhcwV7O8pZlwnbjo8wv8CDtYQ/exec',
+          GAS_URL: 'https://script.google.com/macros/s/AKfycbzDB4RWz3LALuU62B6920i-Nqp93-g1Tl2WCTJKuVV-CcF6xvqnMm00hzpQiosfbgnqEg/exec',
           MAX_PICKS_PER_SENIOR: 3,
           POLL_INTERVAL: 10000,
           NETWORK_CHECK_INTERVAL: 30000
@@ -422,10 +422,10 @@
 
     async function api(action, payload = {}) {
       try {
-        const res = await fetch(CONFIG.GAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, ...payload })
+        const params = new URLSearchParams({ action, ...payload });
+        const res = await fetch(`${CONFIG.GAS_URL}?${params}`, {
+          method: 'GET',
+          cache: 'no-cache'
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
