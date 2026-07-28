@@ -668,40 +668,39 @@
       if (!content) return;
 
       const type = state.messageType;
+      const fromId = state.user.full;
+      const timestamp = new Date().toISOString();
+      
+      // Optimistic UI: append immediately
+      const optimisticMsg = { from_id: fromId, content, type, sent_at: timestamp };
+      state.messages.push(optimisticMsg);
+      appendMessage(optimisticMsg, true);
       els.messageInput.value = '';
       setLoading(els.btnSend, true);
 
       try {
         if (state.demoMode) {
-          const msg = {
-            from_id: state.user.full,
-            content,
-            type,
-            sent_at: new Date().toISOString()
-          };
-          state.messages.push(msg);
-          appendMessage(msg, true);
+          // Already appended above
           return;
         }
 
         const res = await api('sendMessage', {
           pair_key: state.pair.pair_key,
-          from_id: state.user.full,
+          from_id: fromId,
           content,
           type
         });
 
-        if (res.ok) {
-          appendMessage({
-            from_id: state.user.full,
-            content,
-            type,
-            sent_at: new Date().toISOString()
-          }, true);
-        } else {
+        if (!res.ok) {
+          // Remove optimistic message on failure
+          state.messages.pop();
+          els.messagesArea.lastChild?.remove();
           showToast(res.error || 'ส่งไม่สำเร็จ', 'error');
         }
       } catch (e) {
+        // Remove optimistic message on error
+        state.messages.pop();
+        els.messagesArea.lastChild?.remove();
         console.error(e);
         showToast('เกิดข้อผิดพลาด', 'error');
       } finally {
